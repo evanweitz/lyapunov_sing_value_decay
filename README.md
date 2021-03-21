@@ -3,3 +3,5 @@ A discussion of the paper "Fast Singular Value Decay for Lyapunov Solutions with
 
 
 .tex files contain the discussion
+
+graphics available upon request!!
