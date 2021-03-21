@@ -1,0 +1,461 @@
+\documentclass[12pt]{scrartcl}
+
+%-------------------------------------------------------------------------------------------
+% Preamble
+%-------------------------------------------------------------------------------------------
+
+% Evan
+%\usepackage{bbold}
+\usepackage{siunitx}
+
+% Packets for use of European / German writing standards
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+% Packet for showing set labels
+%\usepackage{showkeys} 
+
+% Packet for hiding links in the PDF, attn: conflict with hyperref-packet
+\usepackage[hidelinks]{hyperref}
+
+% Packets for use of mathematical symbols
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+
+% Packets for attachment of graphics and pictures
+\usepackage{graphicx}
+
+% Packet to create graphics
+\usepackage{tikz}
+%\usepackage{xcolor}
+
+% Packet for positioning graphics
+\usepackage{here}
+
+% Packet for arrow ring integrals
+\usepackage{esint}
+
+% Packet for numbered lists
+\usepackage{enumerate}
+
+% Packet for use of a better modern writing style
+\usepackage{lmodern}
+
+% Packet for caring for big tables
+\usepackage{longtable}
+
+% Packets for BibTex and literature bibliographies
+\usepackage{mathrsfs}
+\usepackage[numbers]{natbib}
+\usepackage[fit]{truncate}
+\usepackage{fullpage}
+
+% Formatting of pages
+\oddsidemargin=0.in
+\topmargin=-1.5cm
+\textheight=23cm
+\textwidth=16cm
+
+% Einrücken von neuen Zeilen ausschalten
+\setlength{\parindent}{0cm}
+
+% Command for backslashes
+\newcommand{\bs}{\ensuremath{\backslash}}
+
+%Command for norms
+\newcommand\norm[1]{\left\lVert#1\right\rVert}
+
+% Abbreviations
+\newcommand{\RO}{R^{(0)}}
+\newcommand{\Rm}{R^{(m)}}
+\newcommand{\XO}{X^{(0)}}
+\newcommand{\Xm}{X^{(m)}}
+\newcommand{\Rn}{\mathbb{R}^{n}}
+\newcommand{\Cnn}{\mathbb{C}^{n \times n}}
+\newcommand{\BGMRES}{\textsc{bgmres}}
+
+% Matrixes in Lyapunov
+\newcommand{\mH}{\mathcal H}
+\newcommand{\mHt}{\widetilde{\mathcal H}}
+\newcommand{\mV}{\mathcal V}
+\newcommand{\bbr}{\mathbb R}
+\newcommand{\eps}{\varepsilon}
+
+% Formatting for Lemmas, Theorems, etc. with and without numbering
+%\theoremstyle{break}
+\newtheorem{mydef}{Definition}[section]
+\newtheorem*{myexp}{Example}
+\newtheorem{mycor}[mydef]{Corollary}
+\newtheorem{mythm}[mydef]{Theorem}
+\newtheorem{mylem}[mydef]{Lemma}
+\newtheorem{myprop}[mydef]{Proposition}
+\newtheorem*{nonthm}{Theorem}
+\newtheorem*{noncor}{Corollary}
+
+
+
+% Umdefinierung des math. Zählers
+\renewcommand{\theequation}{\thesection.\arabic{equation}}
+
+\begin{document}
+	
+%-------------------------------------------------------------------------------------------
+% Title Page
+%-------------------------------------------------------------------------------------------
+
+% Umnummerierung des Decksblatts zum fehlerfreien Gebrauch des hyperref- Pakets
+\pagenumbering{Alph}
+
+% Setting of Title, Dates, Authors
+\title{Fast Singular Value Decay for Lyapunov Solutions with Nonnormal Coefficients}
+
+\date{28.02.2019}
+\author{\large by Jonathan Baker, Mark Embree, and John Sabino \\ Evan~Weitz}
+
+% Erzeugung des Deckblatt
+\maketitle
+
+% Unterdrücken der Seitennummerierung
+\thispagestyle{empty}
+
+% Umstellung der Seitennummerierung auf arabische Ziffern
+\pagenumbering{arabic}
+
+
+
+
+\section{Introduction to Lyapunov Equations}
+
+The Lyapunov equation is a common problem in the class of matrix equations, traditionally resulting from problems in stability analysis. For example, the system $x'(t) = f(x)$ where $f: \Rn \rightarrow \Rn$. A point $x_{e} \in \Rn$ is an equilibrium point of the system if $f(x_{e}) = 0$, and the system is globally aymptotically stable if for every trajectory $x(t)$, $x(t) \rightarrow x_{e}$ as $t \rightarrow \infty$, implying $x_{e}$ is the unique equilibrium point. Given $BB^{H}$, there exists a unique, positive definite $X$ satistfying the Lyapunov equation: 
+$$AX+XA^{H}=-BB^{H},$$
+if and only if the system $\frac{dx}{dt}=Ax$, $A \in \Cnn$ is globablly asymptotically stable. \cite{stan} Therefore, conclusions about the trajectories of the system are able to be reached by solving the Lyapunov equation rather than the differential equation. A linear system is globally asymptotically stable if and only if the real components of the eigenvalues $\lambda_{i}$ of $A$ are less than 0 for all $i=1,...,n$, representing negative feedback in the control system. It is assumed that this condition is fulfilled.
+
+Additionally, if (A,B) is controllable, the solution $X \in \Cnn$ is Hermitian Positive Definite and $\text{rank}(X) = n$. A system is said to be controllable if results in the entire configuration space can be reached using only admissible inputs. The exact definition varies depending on the type of model. In this setting, the right hand side typically has low rank equal to the number of inputs or outputs in the system. The solution matrix $X$ is typically dense, with rapid decay in its eigenvalues, and for large problems it is not desirable to store all $n^{2}$ entries of the solution. \cite{PEN1} This informs the desire to create low-rank estimates for $X$. 
+
+In some settings $A$ can be normal, and even symmetric, but the authors seek to explore what can happen when $A$ is nonnormal, especially in the interesting case where nonnormality can lead to desirable characteristics in $X$. 
+
+\subsection{Terminology}
+
+The eigenvalues of $X$ are called singular values, because the concepts presented generalize to situations where $X$ is not HPD or square, such as the Sylvester equation $AX + DX = C$. Unless specifically noted, matrix norms are the 2-norm: $\|A\| =\sqrt{\lambda_{max}(A^{H}A)}$.
+
+The concept of departure from normality does not have a standard definition. A comparison between some of the many definitions is given by Elsner and Paardekooper [1987]. A definition that allows for an intuitive understanding of the relationship between normality and matrix entries is: $$dep(A)=\left( \| A \|_{F}^{2} - \| \Delta \|_{F}^{2} \right) ^{\frac{1}{2}},$$ where $\Delta$ is a diagonal matrix whose entries are the eigenvalues of A.
+
+\subsection{Numerical Methods}
+
+The choice of which numerical method to apply to a Lyapunov equation depends on the system. Iterative methods are well-suited for large and sparse systems, among them the alternating direction implicit (ADI) method. \cite{PEN2} Understanding the singular values of $X$ is therefore important, as they define the best possible performances of iterative methods to create low-rank approximations to $X$.
+
+The ADI iteration for a Lyapunov equation consists of the following steps:
+
+
+\hspace*{5mm} 1. Solve for $X^{(j+1/2)}$, where $$(A - \bar{\mu}_{j+1}I)X^{(j+1/2)} = X^{(j)}(A^{H}- \bar{\mu}_{j+1}I) - BB^{H}.$$
+
+\hspace*{5mm} 2. Solve for $X^{(j+1)}$, where $$X^{(j+1)}(A^{H} - \mu_{j+1}I) = (A- \mu_{j+1}I)X^{(j+1/2)} + BB^{H}.$$
+
+The algorithm alternately updates the column and row spaces of an approximate solution. The $\mu$ terms, called shift parameters, are selected from the right half-plane, and their selection is highly important for the convergence of the algorithm, but lies outside the scope of discussion of this paper. The \textit{k}-th ADI iteration gives an approximate solution $X_{k}$ with $\text{rank}(X_{k}) \leq kr $ such that: 
+
+$$X-X_{k} = \phi_{k}(A)X \phi_{k} (A)^{H},$$
+
+where $$\phi_{k}(z) = \prod_{j=1}^{k} \frac{z+\mu_{j}}{z-\bar{\mu_{j}}}.$$
+
+It is assumed that the shift parameters are chosen such that they minimize $\|X-X_{k}\|$. For singular values $s_{1},...,s_{n}$ of $X$, the theory of Schmidt-Eckart-Young-Mirsky states:
+
+$$\frac{s_{kr+1}}{s_{1}} \leq \| \phi_{k}(A) \|^{2},$$
+
+
+meaning that a bound on the singular value decay is formed from such a function of $A$. 
+
+For nonnormal $A$, $\| \phi_{k}(A) \| $ can be much larger than the singular value decay, rendering the above bound insufficient; therefore the following bounds are presented along with qualitative interpretations. 
+
+\section{Summary of Previously-known Decay Bounds}
+
+The previously-known bounds allow for slower decay of the singular values of $X$ as departure from normality in the coefficient matrix $A$ increases. At the very least, there is nothing in the bounds to suggest that the decay should be more rapid with a highly nonnormal $A$.
+
+\subsection{Eigenvalues-based Bound}
+
+For diagonalizable $A$, $A=V \Delta V^{-1}$, where $\Delta$ is a diagonal matrix formed from the eigenvalues of $A$ and the columns of $V$ are the corresponding eigenvectors:
+
+$$\| \phi_{k}(A) \| \leq \|V\| \|V^{-1}\| \max_{\lambda \in \sigma(A)} |\phi_{k}(\lambda)|.$$
+
+Then, with $\text{rank}(B)=r$: 
+
+$$\frac{s_{kr+1}}{s_{1}} \leq \|V \|^{2} \| V^{-1} \|^{2} \max_{\lambda \in \sigma (A)} \prod_{j=1}^{k} \frac{ | \lambda + \mu_j |^{2}}{| \lambda - \overline{\mu_{j}} |^{2}} .$$
+
+Other values being fixed, if one were to manipulate the departure from normality of $A$, the right-hand side increases as the eigenvectors associated with the distinct eigenvalues of $A$ become increasingly aligned and $V$ becomes increasingly ill-conditioned.
+
+\subsection{Numerical Range-based Bound}
+
+A function is called analytic in a disc if its Taylor series about $x_{0}$ converges pointwise to the value of the function itself for every $x_{0}$ in the disc. If $\phi_{k}$ is analytic on the range:
+
+$$W(A) = \{x^{H}Ax:x \in \Cnn , \| x \| = 1\}, $$
+
+then:
+
+$$\frac{s_{kr+1}}{s_{1}} \leq C^{2} \max_{z \in W(A)} \prod_{j=1}^{k} \frac{ | z + \mu_j |^{2}}{|z - \bar{\mu_{j}} |^{2}},$$
+
+where C is Crouzeix's constant, a value between 2 and 11.08. There are still many open questions relating to this constant, however its exact value is not vital in qualitative analysis of the bound. A sufficient condition to ensure analyticity of $\phi_{k}$ is $W(A) \subseteq \mathbb{C}^{-}$.
+
+$W(A)$ is called the numerical range of $A$, and its rightmost element in the complex plane is equal to the rightmost eigenvalue of the Hermitian part of $A$. This value is also called the numerical abscissa, and can be equivalently defined as: 
+
+$$\omega(A) = \max_{z \in W(A)} \text{Re }z = \max_{\substack{x \in \mathbb{C}^{n} \\ \| x \| = 1}} x^{H} \left( \frac{A+A^{H}}{2} \right)x = \omega(A) = \frac{d}{dt} \| e^{tA} \| \rvert_{t=0} .$$
+
+Along with nonnormality of A, $\omega(A)>0$ is a necessary condition for the solutions of $\frac{dx}{dt}=Ax(t)$ to show transient growth, potentially an important consideration in the physical setting. Importantly, $\omega(A)$ can be positive even when the spectrum of A is completely in the left half-plane.
+
+The numerical range can also be understood to be the range of the Rayleigh quotients, and for a normal matrix is equal to the convex hull of its eigenvalues. As $A$ departs from normality, the numerical range becomes larger and therefore the right-hand side of the bound could exhibit growth.
+
+
+\subsection{Pseudospectrum-based Bound}
+
+The condition that $W(A) \subset \mathbb{C}^{-}$ excludes some $A$ that nonetheless lead to stable systems. For $\epsilon > 0$, the $\epsilon$-pseudospectrum is defined as: 
+
+$$\sigma_{\epsilon}(A)= \{ z \in \mathbb{C} : z \in \sigma (A+E), E \in \mathbb{C}^{n \times n}, \|E\| < \epsilon \}.$$ 
+
+If $\phi_{k}$ is analytic on the $\epsilon$-pseudospectrum, then:
+
+$$\frac{s_{kr+1}}{s_{1}} \leq \frac{L_{\epsilon}^{2}}{4\pi^{2}\epsilon^{2}} \max_{z \in \sigma_{\epsilon}(A)} \prod_{j=1}^{k} \frac{ | z + \mu_j |^{2}}{ | z - \bar{\mu_j} |^{2}} ,$$
+
+where $L_{\epsilon}$ is the contour length of the boundary of $\sigma_{\epsilon}(A)$. Larger $\epsilon$ decreases the first term on the right-hand side but enlargens the pseudospectrum, therefore $\epsilon$ can be chosen to balance these terms.
+The eigenvalues of normal matricies are not sensitive to perturbation, however the sensitivity of eigenvalues of nonnormal matricies can be high, meaning the pseudospectrum of such matricies can be large even when $\epsilon$ is not. The Bauer-Fike theorem states, if $\alpha$ is an eigenvalue of the perturbed system $A+E$ and $V^{-1}AV= \Delta =diag(\lambda_{1},...)$, then:
+
+$$min_{\lambda \in \lambda(A)} | \lambda - \alpha | \leq \kappa_{p}(V) \|E\|_{p}.$$
+
+In other words, the sensitivity of an eigenvalue to perturbation is estimated by the condition number of $V$. This leads qualitatively to the same conclusion as with the eigenvalues-based bound, namely that the right-hand side could be larger for highly nonnormal matricies. Examples can be readily found of nonnormal matricies that have eigenvalues sensitive to perturbation, and those that do not.
+
+
+\subsection{Bound of Antoulas, Sorensen, and Zhou}
+
+The numerical range-based bound suggests the closer $W(A)$ is to zero, the slower the decay, however the bound fails when $0 \in W(A)$. As this requirement eliminates a category of nonnormal matricies of interest, the following bound is presented. For diagonalizable $A$ and $\text{rank}(B)=1$:
+
+$$s_{k+1} \leq (n-k)^{2} \|V\|^{2} \|V^{-1}\|^{2}\|B\|^{2} \delta_{k+1},$$
+
+where 
+
+$$\delta_{k} = - \frac{1}{2 \text{Re} \lambda_{k}} \prod_{j=1}^{k-1} \frac{|\lambda_{k} - \lambda_{j}|^{2}}{|\lambda_{k}-\lambda_{j}|^{2}},$$
+
+with the eigenvalues ordered such that the $\delta$ terms are decreasing. This leads to the bound:
+
+$$\frac{s_{k+1}}{s_{1}} \leq 2(n-k)^{2} \|A\| \|V\|^{2} \|V^{-1}\| \delta_{k+1}.$$
+
+
+It can be seen that an increase in the condition number of $V$ leads to an increase of the right-hand side, implying once again that nonnormality could mean slower singular value decay. The restriction on the rank of $B$ excludes many systems of interest. In the previous bounds, a larger rank of $B$ implied the possibility of slower decay, as the left-hand term $\frac{s_{kr+1}}{s_{1}}$ for a fixed right-hand side would apply to a singular value further from the first, giving a less tight bound. 
+
+
+\subsection{Example 1}
+
+Let $A$ be a discretization of the differential operator $\frac{d}{dx} -1$ for absolutely continuous functions on $L^{2}(0,1)$ such that $u(1)=0$. The forward finite differences approximation on a uniform grid of spacing $1/n$ gives:
+
+\[
+A =
+ \begin{bmatrix}
+  -1-n & n & & \\
+  & -1-n & \ddots &  \\
+  & & \ddots & n \\
+  & & & -1-n \\
+ \end{bmatrix} \in \Cnn
+\] 
+
+The spectrum of $A$ is $\sigma(A)=\{-1-n\}$, and the numerical range is $W(A)=\{z \in \mathbb{C} : |z+1+n| \leq n \cos (\frac{\pi}{n+1})\}$. $W(A)$ is a disk centered at $-1-n$, and as $n$ increases $W(A)$ enlarges monotonically and encompasses more of the half-plane $\{z \in \mathbb{C} : \text{Re}z<-1 \}$.
+
+\begin{center}
+\includegraphics[scale=1]{fig1.pdf}
+\end{center}
+
+The figure that as the numerical range of $A$ grows, bound from above by -1, the decay rate of the singular values of $X$ slow, for a constant vector $B$. The relationship between the value of $n$ and the departure from normality can be intuited from the definition of departure from nonnormality; as $n$ increases, the norm of the matrix of the eigenvalues of $A$, which are equal to $-1-n$, grows more slowly than the norm of $A$ itself, and thus the departure from normality increases. 
+Not every nonnormal matrix $A$ gives rise to this behavior. As a counter-example, for the solution matricies with no singular value decay, $X=kI_{n}$ with constant $k>0$ and $n>r$, the original Lyapunov equation is: 
+
+$$A+A^{H}=-\frac{1}{k}BB^{H}.$$
+
+In this case, the Hermitian part of $A$, $A_{H} = \frac{1}{2} (A+A^{H})$ is negative semidefinite with a rightmost eigenvalue equal to 0, meaning $\omega(A)=0$, and $s_{k}/s_{1}=1$ for all $k$. It is precicely the cases where $\omega(A) \geq 0$ that motivate the creation of a new bound on singular value decay. 
+
+\section{Fast Singular Value Decay: Examples and Theory}
+
+
+\subsection{Example 2}
+
+Consider the Lyapunov system where 
+
+\[
+A(\alpha) =
+ \begin{bmatrix}
+  -1 & \alpha \\
+  0 & -1 &  \\
+ \end{bmatrix}, \text{      }
+B =
+ \begin{bmatrix}
+  t \\
+  1  \\
+ \end{bmatrix}
+\] 
+
+Solving exactly for $X$:
+
+\[
+X = \frac{1}{4}
+ \begin{bmatrix}
+  2t^{2}+2 \alpha t + \alpha^2 & \alpha + 2t \\
+  \alpha + 2t & 2 \\
+ \end{bmatrix}
+\] 
+
+
+
+
+Similarly, the singular value decay $s_{2}/s_{1}$ can be solved for exactly:
+
+$$\frac{s_{2}}{s_{1}}=\frac{\text{tr}(X)-\sqrt{\text{tr}(X)^{2}-4\text{det}(X)}}{\text{tr}(X)+\sqrt{\text{tr}(X)^{2}-4\text{det}(X)}} \leq 1,$$
+
+By controlling $t$ over all $t \in \mathbb{R}$, the slowest decay is when $t=\alpha/2$, and: 
+
+$$    \frac{s_{2}}{s_{1}}=
+    \begin{cases}
+      \alpha^{2}/4, & 0<\alpha \leq 2 \\
+      4/\alpha^{2}, & 2 \leq \alpha
+    \end{cases} $$
+
+
+\begin{center}
+\includegraphics[scale=1]{fig2.pdf}
+\end{center}
+
+As $\alpha$ increases so does the nonnormality of $A$ per the definition, but the singular value decay reaches the slowest point at $\alpha=2$ and then becomes more rapid as $\alpha$ increases. 
+The previously presented bounds do not predict this behavior. The eigenvalue-based bound as well as the bound of Antoulas, Sorensen and Zhou are not applicable, because the matrix is not diagonalizable. For the numerical range-based bound it was required that the numerical range be in the negative half-plane. However if analycity of $\phi$ were ensured even with a positive numerical abscissa, $W(A(\alpha))$ is a disk increasing in size monotonically with $\alpha$, so the right-hand side of the bound would increase with larger $\alpha$. For the pseudospectrum-based bound, the pseudospectrum of this matrix does not meaningfully increase with larger $\alpha$. By adding a small perturbation of $1 \times 10^{-10}$ to the bottom left corner and setting $\alpha=4$ the resulting eigenvalues are -1.00002 and -0.99998. For $\alpha=10000$ the resulting eigenvalues are -1.001 and -0.998. The drastic increase of departure from normality therefore does not significantly affect the bound, and certainly the right-hand side of the bound does not decrease.
+
+
+\subsection{A Very Specific Bound}
+
+Assume $B \in \mathbb{C}^{n \times 1}$ and $(A,B)$ is controllable. $A$ is then non-derogatory, and the minimum polynomial of $A$ is the same as its characteristic polynomial: 
+
+$$c_{0}+c_{1}z+...+c_{n-1}z^{n-1}+z^{n}.$$
+
+The associated companion matrix to $A$, $A_{c}$ has the same eigenvalues as $A$.
+
+\[
+A_{c} =
+ \begin{bmatrix}
+& & & & -c_{0} \\
+1 & & & &-c_{1} \\
+& & \ddots & &\vdots \\
+& & & 1 & -c_{n-1}
+ \end{bmatrix}\] 
+
+In this setting, Antoulas, Sorensen, and Zhou (2002) describe the following method to solve for X in the Lyapunov system. Using the Krylov matrix $K=[B \text{ } AB \text{ }  ... A^{n-1}B] \in \Cnn$, the Lyapunov equation $AX+XA^{H}=-BB^{H}$ is satisfied if and only if $X=KGK^{H}$, where G solves:
+
+\[ A_{c}G+GA_{c}^{H}= \begin{bmatrix}
+1 & 0 & \cdots \\
+0 & 0 & \\
+\vdots & & \ddots \end{bmatrix} \]
+
+
+$G$ depends solely on the spectrum of $A$. Let $\varsigma_{k}(K)$ be defined as the $k$-th singular value of $K$, and note that (A,B) being controllable means that $K$ has full rank $n$. The following bound on the singular value of $X$ decay results:  
+
+$$\frac{s_{k}}{s_{1}} \leq \varsigma_{k}(K)^{2} \|A\| \left( \frac{2\|G\|}{\|BB^{H}\|} \right).$$
+
+In order to understand the departure from normality of $A$, both $B$ and the spectrum of $A$ are fixed, and $A$ is defined as: 
+
+$$A = \Delta + \alpha S,$$
+
+with diagonal $\Delta$, strictly upper triangular $S$, and variable $\alpha$. The $2 \times 2$ matrix from Example 2 is then generalized by setting $\Delta = I_{n}$ and $S$ to an upper shift matrix:
+
+\[
+A =
+ \begin{bmatrix}
+-1 &  \alpha & & \\
+ & -1 & \ddots &  \\
+& & & \ddots & \alpha \\
+& & &  & -1
+ \end{bmatrix}\] 
+
+A small $\alpha$ results in an $A$ that is closer to normal. In this case all the columns of $K$ would be mostly the same, since $A$ is close to identity, $B$ is a $n \times 1$ matrix, and $\varsigma_{k}(K)$ will be small for all $k \geq 2$. In this case $\varsigma(K)^{2}$ are small and the matrix norm of $A$ is likewise small, implying fast singular value decay. 
+
+If $\alpha$ is large, $K$ is severly graded. The singular values of $K$ are estimated to decay very rapidly under these conditions, and since $\|A\|$ grows only linearly with $\alpha$, the right-hand side will again be small, and the singular values of $X$ will decay rapidly. In both cases the rightmost term is constant. As with the $2 \times 2$ case, the slowest decay of singular values is found at some middle point, and indeed once again at $\omega(A)=0$.
+
+\begin{center}
+\includegraphics[scale=0.8]{fig3.pdf} \linebreak
+\end{center}
+
+
+The graphic compares the numerical range of $A$ with $n=64$ to the singular value decay of $X$. The bound correctly qualitatively describes the singular value decay in the case where $\omega(A)>0$, however only in this specific setting. 
+
+
+\subsection{Main Result: Numerical Range of A and Singular Value Decay}
+
+The main result is a bound that has more general descriptive power. 
+
+\begin{nonthm}
+
+Let $X \in \Cnn$ be a solution to the Lyapunov equation, with $(A,B)$ controllable. Then for all $k=1,...,n$:
+
+$$\frac{s_{k}}{s_{1}}-1-\frac{\|B\|^{2}}{2s_{1}\|A\|} \leq \frac{\omega_{k}}{\|A\|} \leq 1- \frac{s_{n-k+1}}{s_{1}},$$
+
+where $s_{k}$ is the $k$-th singular value of X and $\omega_{k}$ is the $k$-th rightmost eigenvalue of the Hermitian part of A. 
+
+\end{nonthm}
+
+The proof is not reproduced, however of note is that an intermediate step is the definition $X=\xi (I-E)$ for $\xi>0$ and $E$ Hermitian, and the choice of $\xi=s_{1}$, the first singular value of $X$, which resulted in the simplest bound. If $\xi$ were set to another value, smaller but still positive, the eigenvalues of $E$ might be negative, leading to a more complex and conditional statement. Regardless, in terms of the experiments shown, the theorem does not lend itself to easy interpretation. Only with $k=1$ would the theorem include the numerical abscissa and hence any clear connection with the departure from normality of $A$. An optimal choice of $\xi$ for $k=1$ is $\xi=\frac{s_{1}+s_{n}}{2}$, giving the following result. 
+
+\begin{mycor}
+
+Let $X \in \Cnn$ be a solution to the Lyapunov equation, with $(A,B)$ controllable. Then the singular values of $X$ satisfy:
+
+$$-\frac{\|B\|^{2}}{2s_{1}} \leq \omega(A) \leq \frac{s_{1}-s_{n}}{s_{1}+s_{n}} \|A\|.$$
+
+\end{mycor}
+
+The corollary shows the relationship between the numberical abscissa and the the extreme singular values of $X$. It is clear that if $s_{n}$ is close to $s_{1}$, meaning slow singular value decay, then $\omega(A)$ is small compared to $\|A\|$. If $\omega(A)$ is almost as large as $\|A\|$, then the first term on the right-hand side must be close to 1. This leaves open the possibility of rapid singular value decay, but does not ensure it. The very last singular value $s_{n}$ being small compared to $s_{1}$ does not make clear the nature of the singular value decay for the interior values. It can be seen that the numerical abscissa must exist within a range defined by the singular values of $X$, given fixed $B$. This reading, however, is of limited utility, as it is precicely the singular values of $X$ one would wish to know, not $\omega(A)$.
+
+A second corollary is developed therefore to show the circumstances under which there must be rapid singular value decay.
+
+\begin{mycor}
+
+Let $X \in \Cnn$ be a solution to the Lyapunov equation, with $(A,B)$ controllable. Then $\omega_{k}$, the $k$-th rightmost eigenvalue of the Hermitian part of $A$, must satisfy:
+
+$$\frac{s_{n-k+1}}{s_{1}} \leq 1 - \frac{\omega_{k}}{\|A\|}, \text{    }k=1,...,n.$$
+
+\end{mycor}
+
+If $s_{1}=s_{n}$, the case when there is no decay of singular values, then all $\omega$, and necessarily the numerical abscissa $\omega_{1}$, must be 0. This corollary therefore explains the case when $X$ is a scalar times the identity matrix. In the case of a highly nonnormal $A$ with positive $\omega_{k}$ of similar magnitude to $\|A\|$, the rightmost term is almost 1, necessitating that $s_{n-k+1}$ is very small compared to $s_{1}$, giving the possibility of rapid decay. In contrast with the bounds in Section 2, nonnormality implies faster decay. Additionally, the rank of $B$ is not relevant. 
+
+If $\|A\|$ is influenced more by large negative eigenvalues than by its departure from normality, the bound might not be useful. In that case, the decay rate is bound from above only by something slightly smaller than 1. When $\omega_{k}<0$ the bound is also not useful, but in that setting it might be more appropriate to apply one of the earlier bounds. 
+
+Applied to the example of the $2 \times 2$ Jordan block:
+
+\[
+A(\alpha) =
+ \begin{bmatrix}
+  -1 & \alpha \\
+  0 & -1 &  \\
+ \end{bmatrix}, \text{      }
+B =
+ \begin{bmatrix}
+  t \\
+  1  \\
+ \end{bmatrix}
+\] 
+
+$$\omega_{1} = \alpha / 2 - 1, \text{    } \|A\| = \sqrt{1-\alpha^{2}/2+\alpha \sqrt{\alpha^{2}/4+1}}.$$
+
+This gives the result: 
+
+$$\frac{s_{2}}{s_{1}} \leq 1-\frac{\omega_{1}}{\|A\|} \rightarrow \frac{1}{2}, \text{    as }\alpha \rightarrow \infty.$$
+
+In reality $\frac{s_{2}}{s_{1}} \rightarrow 0$ as $\alpha \rightarrow \infty$. 
+
+\section{Conclusion}
+
+The second corollary demonstrates that in the specific situation where the coefficient matrix $A$ has both a relatively small 2-norm and the eigenvalues of its Hermitian part, or at least some of them, are positive, there must be decay in the singular values of the solution matrix $X$. Qualitatively, one can say that the smaller the norm of $A$, the larger the eigenenvalues of the Hermitian part are, and the more of them that are positive, the greater this decay will be. Quantitatively, however, the bound could still be tightened. Two other lines of inquiry remain open. The first is whether a quantitative measure of the departure from normality, as given for example by any of the definitions used by Elsner, can be used to describe the phenomenon of rapid singular value decay in this setting. Mark Embree declared that "none of these measures is of much use in practice," however this was stated without further elaboration. \cite{emb} Regardless, a direct relationship of quantitative measures of nonnormality to other characteristics or applications of matricies in general appears to remain largely unexplored.
+The second open question is under which conditions one could expect to find or use a highly nonnormal coefficient matrix in the Lyapunov equation, or even with which discretization schemes these matricies could be generated. The ADI method is known to work especially well when $A$ is normal, and near-optimal shift parameters are known for some $A$ and $B$ when $A$ is normal. The possibility to take advantage of this phenomenon with numerical methods is not discussed.   
+
+\nocite{ips}
+\nocite{MR894640}
+\nocite{MR3095913}
+\nocite{ELS}
+\nocite{ANT}
+\nocite{TREF}
+\nocite{DRU}
+
+\bibliographystyle{abbrv}
+\bibliography{lyapun-bib}
+
+\end{document}
